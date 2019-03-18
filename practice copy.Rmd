@@ -1,0 +1,1395 @@
+---
+title: "pm2.5"
+author: "Wei Zhang"
+date: "1/31/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+data_2017=read.csv("Shanghai_2017_HourlyPM25_created20170803.csv")
+```
+
+```{r}
+library(tidyverse)
+```
+
+
+```{r}
+data_2017=data_2017[-c(1:3),]
+```
+
+
+```{r}
+plot.ts(data_2017$X.6)
+```
+
+
+1. pm 2.5 correlations to other pollutions
+2. Shanghai network with other cities
+3. Spatial (location) Data analysis/prediction 
+4. Time Series Prediction
+
+
+http://www.pm25.in/api/querys/pm2_5.json?city=shanghai&token=5j1znBVAsnSf5xQyNQyq
+http://www.semc.com.cn/aqi/Home/historyData
+http://www.ngcc.cn/article/sjcg/jskf/jcchyy/
+
+```{r}
+data_local=read.csv("2018local2.csv")
+```
+
+```{r}
+library(dplyr)
+```
+
+```{r}
+x1=select(filter(data_local,site=="Shiwuchang"),c(pm25))
+names(x1)="Shiwuchang"
+```
+
+```{r}
+x2=select(filter(data_local,site=="Hongkou"),c(pm25))
+names(x2)="Hongkou"
+```
+
+```{r}
+x3=select(filter(data_local,site=="Xuhui"),c(pm25))
+names(x3)="Xuhui"
+```
+
+```{r}
+x4=select(filter(data_local,site=="Yangpu"),c(pm25))
+names(x4)="Yangpu"
+```
+
+```{r}
+x5=select(filter(data_local,site=="Qingpu"),c(pm25))
+names(x5)="Qingpu"
+```
+
+```{r}
+x6=select(filter(data_local,site=="Jingan"),c(pm25))
+names(x6)="Jingan"
+```
+
+```{r}
+x7=select(filter(data_local,site=="Pudong_chuansha"),c(pm25))
+names(x7)="Pudong_chuansha"
+```
+
+```{r}
+x8=select(filter(data_local,site=="Pudong_xinqu"),c(pm25))
+names(x8)="Pudong_xinqu"
+```
+
+```{r}
+x9=select(filter(data_local,site=="Pudong_zhangjiang"),c(pm25))
+names(x9)="Pudong_zhangjiang"
+```
+
+```{r}
+x10=select(filter(data_local,site=="Putuo"),c(pm25))
+names(x10)="Putuo"
+```
+
+```{r}
+longitude=c(121.128,121.24,121.27,121.39,121.26,121.15,121.31,121.485,121.27,121.30,121.25,121.13,121.4740,121.25,121.344,121.3023)
+latitude=c(31.1708,31.24,31.13,31.25,31.11,31.23,31.15,31.2331,31.14,31.40,31.13,31.02,30.9178,31.5,30.8311,31.1405)
+```
+
+```{r}
+lonlat=cbind(longitude,latitude)
+```
+
+```{r}
+pts=SpatialPoints(lonlat)
+```
+
+```{r}
+showDefault(pts)
+```
+
+```{r}
+crdref <- CRS('+proj=longlat +datum=WGS84')
+pts <- SpatialPoints(lonlat, proj4string=crdref)
+```
+
+```{r}
+pts
+```
+
+```{r}
+pm2.5_1812=c(43,34,33,37,38,39,37,38,38,40,39,40,37,40,42,35)
+df=data.frame(ID=c("Qingpu","Baoshan","Jingan","Putuo","Xuhui","Jiading","Yangpu","Huangpu","Hongkou","Chongming","Changning","Songjiang","Fengxian","Minxing","Jinshan","Pudong"),pm_25=pm2.5_1812)
+```
+
+```{r}
+ptsdf=SpatialPointsDataFrame(pts,data=df)
+ptsdf
+```
+
+```{r}
+summary(ptsdf)
+```
+
+```{r}
+lns=spLines(lonlat,crs = crdref)
+lns
+```
+
+```{r}
+pols=spPolygons(lonlat,crs = crdref)
+```
+
+```{r}
+plot(lns, axes=TRUE, las=1)
+#plot(pols, lwd=3, add=TRUE)
+points(pts, col='red', pch=20, cex=3)
+```
+
+```{r}
+proj4string(pts)
+proj4string(ptsdf)
+```
+
+```{r}
+bbox(pts)
+bbox(ptsdf)
+```
+
+```{r}
+ptsdf=spTransform(ptsdf,CRSobj = CRS(proj4string(pts)))
+```
+
+```{r}
+plot(ptsdf, col = "blue",
+     pch = 8)
+
+```
+
+```{r}
+China=readOGR(dsn="china-province-border-data/bou2_4p.shp")
+```
+
+
+```{r}
+China_df=fortify(China)
+```
+
+```{r}
+head(China_df)
+```
+```{r}
+head(China)
+```
+
+
+```{r}
+chinaMap <- ggplot(China_df, aes(long,lat, group = group)) +
+  geom_polygon() +
+  coord_equal() +
+  labs(x = "Longitude (Degrees)",
+       y = "Latitude (Degrees)")
+```
+
+```{r}
+chinaMap
+```
+
+```{r}
+CHINA=readRDS('gadm36_CHN_3_sp.rds')
+```
+
+```{r}
+head(CHINA)
+```
+
+```{r}
+China_df$lat[57000]
+```
+
+```{r}
+names(China)
+```
+
+```{r}
+table(iconv(Shanghai$NL_NAME_3))
+```
+
+
+```{r}
+Shanghai = CHINA[CHINA$NAME_1=="Shanghai",]
+plot(Shanghai)
+```
+
+```{r}
+head(Shanghai)
+```
+
+```{r}
+unique(Shanghai$NAME_3)
+```
+
+
+```{r}
+Shanghai2=fortify(Shanghai,region = "NAME_3")
+head(Shanghai2)
+
+```
+
+```{r}
+unique(Shanghai2$id)
+```
+
+```{r}
+Shanghaimap=ggplot(Shanghai2, aes(long,lat, group = group)) +
+  geom_polygon() +
+  coord_equal() +
+  labs(x = "Longitude (Degrees)",
+       y = "Latitude (Degrees)")
+```
+
+```{r}
+Shanghaimap
+```
+
+```{r}
+lonlat2=data.frame(lonlat)
+maplocations=Shanghaimap+geom_point(data = lonlat2,aes(x = longitude, y = latitude, group = NULL), colour = c(1:16),
+                      size = 2)
+```
+
+
+
+```{r}
+maplocations
+```
+
+```{r}
+library(mapproj)
+```
+
+
+```{r}
+
+```
+
+
+
+
+
+
+```{r}
+names(Shanghai2)[c(1, 2)] = c("x", "y")
+
+shanghai1812 = data.frame(id = unique(sort(Shanghai2$id)))
+```
+
+
+
+```{r}
+pm2018=cbind(c(62,54,55,68,61,59,54,54,68,59,62),
+             c(44,45,43,48,49,45,43,43,50,45,48),
+             c(42,41,38,44,41,40,38,38,45,42,44),
+             c(46,44,39,46,44,43,39,39,49,45,48),
+             c(45,44,39,48,45,42,39,39,49,48,47),
+             c(35,37,32,37,35,32,32,32,38,36,37),
+             c(23,23,20,23,22,21,20,20,24,23,24),
+             c(17,17,17,18,18,15,15,15,20,18,19),
+             c(26,26,29,28,30,29,24,24,30,28,30),
+             c(28,28,30,30,34,31,25,25,32,27,31),
+             c(42,38,39,45,43,44,38,38,46,42,45),
+             c(34,40,37,39,42,40,35,35,43,38,40))
+```
+
+```{r}
+shanghai1812=cbind(shanghai1812,pm2018)
+```
+
+```{r}
+names(shanghai1812)=c("id","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
+```
+
+```{r}
+head(shanghai1812)
+```
+
+```{r}
+ggplot(shanghai1812) + geom_map(aes(map_id = id, fill = Jan), map = Shanghai2) + 
+    scale_fill_gradientn(limits = c(10,70),
+    colours=c('#eaffea', '#004b00', '#800000') ) +
+    expand_limits(Shanghai2) + coord_map()
+```
+
+```{r}
+par(mfrow=c(3,4))
+ggplot(shanghai1812) + geom_map(aes(map_id = id, fill = Jan), map = Shanghai2) + 
+    scale_fill_gradientn(limits = c(10,70),
+    colours=c('#eaffea', '#004b00', '#800000') ) +
+    expand_limits(Shanghai2) + coord_map()
+
+ggplot(shanghai1812) + geom_map(aes(map_id = id, fill = Feb), map = Shanghai2) + 
+    scale_fill_gradientn(limits = c(10,70),
+    colours=c('#eaffea', '#004b00', '#800000') ) +
+    expand_limits(Shanghai2) + coord_map()
+
+ggplot(shanghai1812) + geom_map(aes(map_id = id, fill = Mar), map = Shanghai2) + 
+    scale_fill_gradientn(limits = c(10,70),
+    colours=c('#eaffea', '#004b00', '#800000') ) +
+    expand_limits(Shanghai2) + coord_map()
+
+ggplot(shanghai1812) + geom_map(aes(map_id = id, fill = Apr), map = Shanghai2) + 
+    scale_fill_gradientn(limits = c(10,70),
+    colours=c('#eaffea', '#004b00', '#800000') ) +
+    expand_limits(Shanghai2) + coord_map()
+
+ggplot(shanghai1812) + geom_map(aes(map_id = id, fill = May), map = Shanghai2) + 
+    scale_fill_gradientn(limits = c(10,70),
+    colours=c('#eaffea', '#004b00', '#800000') ) +
+    expand_limits(Shanghai2) + coord_map()
+
+ggplot(shanghai1812) + geom_map(aes(map_id = id, fill = Jun), map = Shanghai2) + 
+    scale_fill_gradientn(limits = c(10,70),
+    colours=c('#eaffea', '#004b00', '#800000') ) +
+    expand_limits(Shanghai2) + coord_map()
+
+ggplot(shanghai1812) + geom_map(aes(map_id = id, fill = Jul), map = Shanghai2) + 
+    scale_fill_gradientn(limits = c(10,70),
+    colours=c('#eaffea', '#004b00', '#800000') ) +
+    expand_limits(Shanghai2) + coord_map()
+
+ggplot(shanghai1812) + geom_map(aes(map_id = id, fill = Aug), map = Shanghai2) + 
+    scale_fill_gradientn(limits = c(10,70),
+    colours=c('#eaffea', '#004b00', '#800000') ) +
+    expand_limits(Shanghai2) + coord_map()
+
+ggplot(shanghai1812) + geom_map(aes(map_id = id, fill = Sep), map = Shanghai2) + 
+    scale_fill_gradientn(limits = c(10,70),
+    colours=c('#eaffea', '#004b00', '#800000') ) +
+    expand_limits(Shanghai2) + coord_map()
+
+ggplot(shanghai1812) + geom_map(aes(map_id = id, fill = Oct), map = Shanghai2) + 
+    scale_fill_gradientn(limits = c(10,70),
+    colours=c('#eaffea', '#004b00', '#800000') ) +
+    expand_limits(Shanghai2) + coord_map()
+
+ggplot(shanghai1812) + geom_map(aes(map_id = id, fill = Nov), map = Shanghai2) + 
+    scale_fill_gradientn(limits = c(10,70),
+    colours=c('#eaffea', '#004b00', '#800000') ) +
+    expand_limits(Shanghai2) + coord_map()
+
+ggplot(shanghai1812) + geom_map(aes(map_id = id, fill = Dec), map = Shanghai2) + 
+    scale_fill_gradientn(limits = c(10,70),
+    colours=c('#eaffea', '#004b00', '#800000') ) +
+    expand_limits(Shanghai2) + coord_map()
+```
+
+
+```{r echo=FALSE,echo=FALSE, fig.align='center',fig.width=7.5,fig.height=7.5}
+
+
+grid.arrange(p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,nrow=3,ncol=4)
+```
+
+
+
+
+```{r}
+weather=read.csv("pp.csv")
+```
+
+```{r}
+pm2.5=read.csv("pm2.csv")
+```
+
+```{r}
+pm2.5$id=c(1:length(pm2.5$id))
+```
+
+```{r}
+pm2.5new=pm2.5 %>%
+    filter(id==c(1:1077)) 
+
+```
+
+
+```{r}
+weathernew=data.frame(weathernew,pm2.5new)
+```
+
+```{r}
+i=1
+while (i<=15){
+    pm2.5new=add_row(pm2.5new,.before=635)
+    i=i+1
+}
+
+i=1
+while (i<=4){
+    pm2.5new=add_row(pm2.5new,.before=635)
+    i=i+1
+}
+```
+
+
+
+```{r}
+pm2.5new$id=c(1:length(pm2.5new$id))
+```
+
+
+```{r}
+library(naniar)
+gg_miss_var(pm2.5new)
+```
+
+
+
+```{r}
+library(Amelia)
+missmap(pm2.5new,col=c(2,4),y.cex = 0.1)
+```
+
+
+
+```{r}
+weather[weather=="-"]=NA
+```
+
+
+```{r}
+gg_miss_var(weather)
+```
+
+```{r}
+values = seq(from = as.Date("2016-01-01"), to = as.Date("2018-12-31"), by = 'day')
+weather$Date=values
+
+weather=weather[,c(-1,-2,-3)]
+
+weather$T=as.numeric(as.character(weather$T))
+weather$PP=as.numeric(as.character(weather$PP))
+weather$H=as.numeric(as.character(weather$H))
+weather$V=as.numeric(as.character(weather$V))
+weather$VV=as.numeric(as.character(weather$VV))
+```
+
+
+
+```{r}
+#weather[weather==NA]=NA
+```
+
+```{r}
+q1=weather %>%
+    plot_ly(x=~Date) %>%
+    add_lines(y=~T,name="Temperature (`C)") 
+
+q2=plot_ly(weather,x=~Date) %>%
+    add_lines(y=~PP,name="Preticipation (mm)") 
+
+q3=plot_ly(weather,x=~Date) %>%
+    add_lines(y=~H,name="Humidity (%)")
+
+q4=plot_ly(weather,x=~Date) %>%
+    add_lines(y=~V,name="Visibility (Km)")
+
+q5=plot_ly(weather,x=~Date) %>%
+    add_lines(y=~VV,name="Wind Speed (Km/h)")
+
+subplot(q1,q2,q3,q4,q5,nrows=5)
+```
+
+
+```{r}
+missmap(weather,y.cex = 0.1)
+```
+
+```{r}
+p1=pm2.5new %>%
+    plot_ly(x=~date) %>%
+    add_lines(y=~pm2.5,name="pm2.5(ug/mm3)") 
+
+p2=plot_ly(pm2.5new,x=~date) %>%
+    add_lines(y=~pm10,name="pm10(ug/mm3)") 
+
+p3=plot_ly(pm2.5new,x=~date) %>%
+    add_lines(y=~o3,name="o3(ug/mm3)")
+
+p4=plot_ly(pm2.5new,x=~date) %>%
+    add_lines(y=~so2,name="so2(ug/mm3)")
+
+p5=plot_ly(pm2.5new,x=~date) %>%
+    add_lines(y=~X.co,name="co(ug/mm3)")
+
+p6=plot_ly(pm2.5new,x=~date) %>%
+    add_lines(y=~no2,name="no2(ug/mm3)")
+
+p7=plot_ly(pm2.5new,x=~date) %>%
+    add_lines(y=~aqi,name="aqi")
+
+subplot(p1,p2,p3,p4,p5,p6,nrows=6)
+subplot(p1,p7,nrows=2)
+```
+
+
+
+```{r}
+pm2.5new$date=values
+```
+
+```{r}
+gg_miss_var(shanghaihourly)
+```
+
+```{r}
+missmap(shanghaihourly[,c(8,12)],y.cex = 0.1)
+```
+
+
+
+```{r}
+shanghaihourly$Value[shanghaihourly$Value==-999]=NA
+
+shanghaihourly$id=c(1:length(shanghaihourly$Value))
+ 
+plot_ly(shanghaihourly,x=~id) %>%
+    add_lines(y=~Value)
+```
+
+
+```{r}
+#pm2.5$date=as.Date(pm2.5$date)
+plot_ly(pm2.5new,x=~date) %>%
+    add_lines(y=~pm2.5)
+```
+
+```{r}
+#pm2.5$date=as.Date(pm2.5$date)
+plot_ly(pm2.5new,x=~date) %>%
+    #add_lines(y=~pm2.5) %>%
+    add_lines(y=~aqi)
+```
+
+
+
+
+```{r}
+pm2.5new$main_pollute[pm2.5new$main_pollute=="-"]=NA
+```
+
+```{r}
+mainpollute=pm2.5new %>%
+    select(main_pollute) %>%
+    separate_rows(main_pollute,sep=',')
+```
+
+
+
+
+```{r}
+mainpollute %>%
+    plot_ly(x=~main_pollute,type="histogram",marker=list(color=c('#E5C430', '#FF9673', '#E1C8B4',"#E04928")))
+#plot_ly(pm2.5new,x=~c("PM2.5","PM10","O3","NO2","SO2","CO"),type = 'histogram') %>%
+    
+```
+
+
+```{r}
+weathernew=weather[,c(1,6,7,8,9)]
+```
+
+```{r}
+pm_weather=cbind(pm2.5new[c(2:9)],weathernew)
+```
+
+
+```{r}
+library(imputeTS)
+```
+
+```{r}
+pm=ts(pm_weather[,c(-1)])
+```
+
+```{r}
+imp=matrix(ncol=12,nrow=1096)
+imp2=imp
+```
+
+
+```{r}
+for (i in c(1:12)){
+    imp[,i]=na.kalman(pm[,i])
+    imp2[,i]=as.numeric(imp[,i])
+    pm_weather[,i+1]=imp2[,i]
+    plotNA.imputations(pm[,i],imp[,i])
+}
+
+```
+
+
+```{r}
+head(pm_weather)
+```
+
+
+```{r}
+pm_weather$month=months(pm_weather$date)
+pm_weather$year=format(pm_weather$date,format="%y")
+```
+
+```{r}
+d2012=read.csv("d2012.csv")
+d2013=read.csv("2013.csv")
+d2014=read.csv("2014.csv")
+d2015=read.csv("2015.csv")
+d2016=read.csv("2016.csv")
+d2017=read.csv("2017.csv")
+
+d2015=d2015[c(-1,-2,-3),];d2016=d2016[c(-1,-2,-3),];d2017=d2017[c(-1,-2),]
+
+dat=rbind(d2012,d2013,d2014,d2015,d2016,d2017)
+
+dat$Value[dat$Value==-999]=NA
+dat=dat[-which(is.na(dat$Value)),]
+
+dat1=dat %>%
+    group_by(Year,Month) %>%
+    summarise(pm_2.5 = mean(Value))
+dat1 <- dat1 %>% data.frame 
+```
+
+
+
+
+```{r}
+pm_weather_mon=aggregate(.~month+year,pm_weather,mean)
+```
+
+```{r}
+pm_weather_mon$year=as.character(pm_weather_mon$year)
+```
+
+
+```{r}
+pm_weather_mon=arrange(pm_weather_mon,year,match(month, month.name)) 
+ 
+```
+
+```{r}
+values2 = seq(from = as.Date("2016-01-01"), to = as.Date("2018-12-31"), by = 'month')
+pm_weather_mon$date=values2
+```
+
+
+```{r}
+pm2.5=ts(pm_weather_mon$pm2.5,frequency = 12,start = c(2016,1))
+```
+
+```{r}
+pm2.5_2=ts(dat1$pm_2.5,frequency = 12,start = c(2012,1))
+```
+
+```{r}
+dat2=dat %>%
+    group_by(Year,Month,Day) %>%
+    summarise(pm_2.5 = mean(Value))
+dat2 <- dat2 %>% data.frame 
+
+```
+
+```{r}
+dat3=dat %>%
+    group_by(Year,Month,Day) %>%
+    summarise(pm_2.5max = max(Value)) 
+dat3 <- dat3 %>% data.frame 
+```
+
+```{r}
+values3 = seq(from = as.Date("2012-01-01"),length.out = 1995, by = 'day')
+dat2$date=values3
+dat3$date=values3
+```
+
+```{r}
+dat2$pm25max=dat3$pm_2.5max
+```
+
+
+```{r}
+plot_ly(dat2,x=~date,fill = 'tozeroy') %>%
+    add_lines(y=~pm_2.5,name="Daily Average",color=I("BLACK")) %>%
+    add_lines(y=~pm25max,name="Daily Maximum")
+
+```
+
+
+
+
+```{r}
+plot_ly() %>%
+    add_lines(data=dat2,x=~date,y=~pm_2.5) %>%
+    add_lines(data=pm_weather,x=~date,y=~pm2.5,color=I("gray"))
+
+```
+
+
+```{r}
+ppp=GGally::ggpairs(pm_weather_mon[,c(4,11,12,13,14,15)])
+```
+
+```{r}
+#ggplotly(ppp)
+```
+
+```{r}
+ppp2=GGally::ggpairs(pm_weather_mon[,c(4:10)])
+```
+
+```{r}
+#ggplotly(ppp2)
+```
+
+## Monthly trend
+
+```{r}
+dat2_mon=dat2 %>%
+    group_by(Year,Month) %>%
+    summarise(pm_2.5mon = mean(pm_2.5)) 
+dat2_mon <- dat2_mon %>% data.frame 
+
+```
+
+```{r}
+ts.plot(pm2.5mon)
+```
+
+
+```{r}
+pm2.5mon=ts(dat2_mon$pm_2.5mon,frequency = 12,start = c(2012,1))
+```
+
+```{r}
+plot(stl(pm2.5mon,s.window="periodic"))
+```
+
+```{r}
+plot(stl(pm2.5day,s.window="periodic"))
+```
+
+```{r}
+trend_pm=ma(pm2.5day,order = 12,centre=T)
+plot(trend_pm)
+```
+
+```{r}
+stl_pmday=stl(pm2.5day,"periodic")
+seasonal_day=stl_pmday$time.series[,1]
+trend_day=stl_pmday$time.series[,2]
+random_day=stl_pmday$time.series[,3]
+```
+
+
+```{r}
+stl_pmmon=stl(pm2.5mon,"periodic")
+seasonal_mon=stl_pmmon$time.series[,1]
+trend_mon=stl_pmmon$time.series[,2]
+random_mon=stl_pmmon$time.series[,3]
+```
+
+```{r}
+acf(random_day)
+```
+
+```{r}
+n<-length(trend_day)
+d<-outer(trend_day,trend_day,"-")
+s<-sum(sign(d[lower.tri(d)]))
+ties<-table(trend_day)
+v<-1/18*(n*(n-1)*(2*n+5)-sum(ties*(ties-1)*(2*ties+5)))
+t<-sign(s)*(abs(s)-1)/sqrt(v)
+1-pnorm(t)
+```
+
+
+```{r}
+stl_pmmon %>% seasadj() %>% naive() %>%
+  autoplot(include=5*169) + ylab("pm2.5") +
+  ggtitle("Naive forecasts of seasonally adjusted data")
+```
+
+```{r}
+
+```
+
+
+
+```{r}
+pm2.5day=ts(dat2$pm_2.5,frequency = 365,start = c(2012,1))
+```
+
+
+
+```{r}
+plot_ly(pm_weather_mon,x=~date) %>%
+    add_lines(y=~pm2.5)
+```
+
+
+```{r}
+trend <- seq_along(pm2.5day)
+pmarma1=auto.arima(pm2.5day, d=1)
+pmarma=auto.arima(pm2.5day, d=0)
+```
+
+```{r}
+summary(pmarma1)
+summary(pmarma)
+```
+
+```{r}
+adf.test(pm2.5mon,alternative = "stationary")
+```
+
+
+```{r}
+plot(forecast(pmarma))
+```
+
+```{r}
+win=window(pm2.5mon,start=2012)
+```
+
+```{r}
+fit1 <- hw(win,seasonal="additive")
+fit2 <- hw(win,seasonal="multiplicative")
+```
+
+```{r}
+fit3=auto.arima(pm2.5mon)
+```
+
+```{r}
+save_kable(kable(summary(fit3)),file = "null.png")
+```
+
+```{r}
+checkresiduals(fit3)
+```
+
+```{r}
+ggtsdiag(fit3)
+```
+
+
+```{r}
+fit3 %>%
+  forecast(h=20) %>%
+  autoplot() +
+    ylab("pm2.5") +  xlab("Time")
+```
+
+
+
+
+```{r}
+fit4=auto.arima(pm2.5mon)
+```
+
+```{r}
+summary(fit1)
+```
+
+
+```{r}
+ggtsdiag(fit2$model)
+```
+
+```{r}
+fit.ets=ets(pm2.5mon)
+```
+
+```{r}
+summary(fit.ets)
+```
+
+
+
+```{r}
+ggtsdiag(fit.ets)
+```
+
+
+
+```{r}
+sarima(pm2.5mon,0,1,1,1,0,0,12,xreg=fourier(pm2.5mon,K=6))
+```
+
+
+```{r}
+fit4 %>%
+  forecast(xreg=fourier(pm2.5mon)) %>%
+  autoplot(include=5*169) +
+    ylab("pm2.5") +  xlab("Time")
+```
+
+```{r}
+fit3 %>%
+  forecast(xreg=fourier(pm2.5_2, K=6, h=24)) %>%
+  autoplot(include=5*169) +
+    ylab("Call volume") +  xlab("Weeks")
+```
+
+```{r}
+summary(fit3)
+```
+
+
+```{r}
+summary(fit1$model)
+```
+```{r}
+summary(fit2$model)
+
+```
+
+
+```{r}
+autoplot(win) +
+  autolayer(fit1, series="HW additive forecasts", PI=FALSE) +
+  autolayer(fit2, series="HW multiplicative forecasts",
+    PI=FALSE) +
+  xlab("Date") +
+  ylab("PM2.5") +
+  ggtitle("PM_2.5 OVER 2012-2017") +
+  guides(colour=guide_legend(title="Forecast"))
+```
+
+```{r}
+fit.ets %>% forecast(h=20) %>%
+  autoplot() +
+  ylab("PM2.5")
+```
+
+```{r}
+combine=data.frame(pm2.5mon=dat2_mon$pm_2.5mon)
+```
+```{r}
+combine2=data.frame(pm2.5mon=pm_weather_mon$pm2.5[c(19:36)])
+```
+```{r}
+combin=rbind(combine,combine2)
+```
+
+```{r}
+combin=ts(combin,frequency = 12,start=c(2012,1))
+```
+
+
+```{r}
+autoplot(combin)
+```
+
+```{r}
+pm2.5max=dat3 %>%
+    group_by(Year,Month) %>%
+    summarise(pm_2.5max = max(pm_2.5max)) 
+pm2.5max <- pm2.5max %>% data.frame 
+```
+
+```{r}
+pm2.5max$date=seq(from = as.Date("2012-01-01"),length.out = 66 , by = 'month')
+```
+
+
+```{r}
+plot_ly() %>%
+    add_lines(data=pm2.5max,x=~date,y=~pm_2.5max)
+```
+
+```{r}
+tsmax=ts(pm2.5max$pm_2.5max,frequency = 12,start = c(2012,1))
+```
+
+```{r}
+stlmax=stl(tsmax,"periodic")
+```
+
+```{r}
+plot(stlmax)
+```
+
+```{r}
+adf.test(tsmax,alternative = "stationary")
+```
+
+
+```{r}
+fitmax=auto.arima(tsmax)
+```
+```{r}
+summary(fitmax)
+```
+
+
+```{r}
+ggtsdiag(fitmax)
+```
+
+```{r}
+checkresiduals(fitmax)
+```
+
+```{r}
+fitmax %>% forecast(h=20) %>%
+  autoplot() +
+  ylab("PM2.5")
+```
+
+```{r}
+fitmaxets=ets(tsmax)
+```
+
+```{r}
+summary(fitmaxets)
+```
+
+```{r}
+checkresiduals(fitmaxets)
+```
+
+```{r}
+fitmaxets %>% forecast(h=20) %>%
+  autoplot() +
+  ylab("PM2.5")
+```
+
+
+```{r}
+num = length(pm2.5_2)
+A = cbind(1,1,0,0,0,0,0,0,0,0,0,0)                                  
+
+# Function to Calculate Likelihood 
+Linn=function(para){
+ Phi = diag(0,12) 
+ Phi[1,1] = para[1]
+ Phi[2:12,1:11] = diag(1,11)
+ Phi[2,]=c(0,rep(-1,11))
+ cQ1 = para[2]; cQ2 = para[3]     # sqrt q11 and sqrt q22
+ cQ=diag(0,12); cQ[1,1]=cQ1; cQ[2,2]=cQ2
+ cR = para[4]                     # sqrt r11
+ kf = Kfilter0(num,pm2.5_2,A,mu0,Sigma0,Phi,cQ,cR)
+ return(kf$like)  
+ }
+
+# Initial Parameters 
+mu0      = c(.7,rep(0,11)) 
+Sigma0   = diag(.04,12)  
+init.par = c(.1, .1, .1, .1)  # Phi[1,1], the 2 Qs and R
+
+# Estimation
+est = optim(init.par, Linn, NULL, method="BFGS", hessian=TRUE, control=list(trace=1,REPORT=1))
+SE  = sqrt(diag(solve(est$hessian)))
+u   = cbind(estimate=est$par,SE)
+rownames(u)=c("Phi11","sigw1","sigw2","sigv"); u     
+
+```
+
+```{r}
+# Smooth
+Phi = diag(0,12) 
+Phi[1,1] = est$par[1] 
+ 
+Phi[2:12,1:11] = diag(1,11)
+Phi[2,]=c(0,rep(-1,11))
+cQ1      = est$par[2]
+cQ2      = est$par[3]      
+cQ       = diag(0,4)
+cQ[1,1]  = cQ1 
+cQ[2,2]  = cQ2   
+cR       = est$par[4]   
+ks       = Ksmooth1(num,pm2.5_2, A, mu0, Sigma0, Phi, Ups = 0,Gam=0,cQ=cQ, cR=cR,input=0)   
+```
+
+```{r}
+# Plots
+Tsm   = ts(ks$xs[1,,], start=1960, freq=12)
+Ssm   = ts(ks$xs[2,,], start=1960, freq=4)
+p1    = 3*sqrt(ks$Ps[1,1,]); p2 = 3*sqrt(ks$Ps[2,2,])
+par(mfrow=c(2,1))
+tsplot(Tsm, main='Trend Component', ylab='Trend')
+  xx  = c(time(jj), rev(time(jj)))
+  yy  = c(Tsm-p1, rev(Tsm+p1))
+polygon(xx, yy, border=NA, col=gray(.5, alpha = .3))
+tsplot(jj, main='Data & Trend+Season', ylab='J&J QE/Share', ylim=c(-.5,17))
+  xx  = c(time(jj), rev(time(jj)) )
+  yy  = c((Tsm+Ssm)-(p1+p2), rev((Tsm+Ssm)+(p1+p2)) )
+polygon(xx, yy, border=NA, col=gray(.5, alpha = .3))
+
+# Forecast
+dev.new()
+n.ahead = 12
+y       = ts(append(jj, rep(0,n.ahead)), start=1960, freq=4)
+rmspe   = rep(0,n.ahead) 
+x00     = ks$xf[,,num]
+P00     = ks$Pf[,,num]
+Q       = t(cQ)%*%cQ 
+R       = t(cR)%*%(cR)
+for (m in 1:n.ahead){
+       xp = Phi%*%x00
+       Pp = Phi%*%P00%*%t(Phi)+Q
+      sig = A%*%Pp%*%t(A)+R
+        K = Pp%*%t(A)%*%(1/sig)
+      x00 = xp 
+      P00 = Pp-K%*%A%*%Pp
+ y[num+m] = A%*%xp
+ rmspe[m] = sqrt(sig) 
+}
+tsplot(y, type='o', main='', ylab='J&J QE/Share', ylim=c(5,30),
+xlim = c(1975,1984))
+upp  = ts(y[(num+1):(num+n.ahead)]+2*rmspe, start=1981, freq=4)
+low  = ts(y[(num+1):(num+n.ahead)]-2*rmspe, start=1981, freq=4)
+ xx  = c(time(low), rev(time(upp)))
+ yy  = c(low, rev(upp))
+polygon(xx, yy, border=8, col=gray(.5, alpha = .3))
+abline(v=1981, lty=3)
+```
+
+```{r}
+pm3=ts(pm_weather,frequency = 365,start = c(2016,1))
+```
+
+
+```{r}
+VARselect(pm_weather[,c(2,9,10,11,12,13)],
+  type="const")[["selection"]]
+```
+
+```{r}
+var1 <- VAR(pm_weather[,c(2,9,10,11,12,13)], p=1, type="const")
+serial.test(var1, lags.pt=10, type="PT.asymptotic")
+```
+
+```{r}
+summary(var1)
+```
+
+
+```{r}
+var2 <- VAR(pm_weather[,c(2,9,10,11,12,13)], p=2, type="const")
+serial.test(var2, lags.pt=10, type="PT.asymptotic")
+```
+
+```{r}
+var3 <- VAR(pm_weather[,c(2,9,10,11,12,13)], p=3, type="const")
+serial.test(var3, lags.pt=10, type="PT.asymptotic")
+```
+
+```{r}
+var5 <- VAR(pm_weather[,c(2,9,10,11,12,13)], p=5, type="const")
+serial.test(var5, lags.pt=10, type="PT.asymptotic")
+```
+
+
+```{r}
+summary(var2)
+```
+
+
+```{r}
+forecast(var1)
+```
+
+
+```{r}
+fit=lm(pm2.5~T+H+PP+VV+V,pm_weather)
+```
+
+```{r}
+summary(fit)
+```
+
+```{r}
+plot(fit)
+```
+
+
+```{r}
+xtable(summary(fit))
+```
+
+```{r}
+
+```
+
+
+
+```{r}
+library(forecast)
+x0=x=pm2.5new[,2]
+x=ts(x,frequency = 365,start = c(2016,1))
+x=log(x[,1])
+y <- x
+```
+
+```{r}
+fit=auto.arima(x)
+summary(fit)
+model=fit$model
+```
+
+```{r}
+# Kalman filter
+kr <- KalmanRun(x, model)
+# impute missing values Z %*% alpha at each missing observation
+id.na <- which(is.na(x))
+for (i in id.na)
+  y[i] <- fit$model$Z %*% kr$states[i,]
+y[id.na]
+```
+
+```{r}
+par(mfrow = c(2, 1), mar = c(2.2,2.2,2,2))
+x0=x
+plot(x0,col="gray")
+lines(x)
+points(time(x0)[id.na], x0[id.na], col = "blue", pch = 19)
+points(time(y)[id.na], y[id.na], col = "red", pch = 17)
+legend("bottomleft", legend = c("true values", "imputed values"), 
+  col = c("blue", "red"), pch = c(19, 17))
+plot(time(x0)[600:700], x0[600:700], type = "b", col = "blue", 
+  pch = 19 )
+points(time(y)[600:700], y[600:700], col = "red", pch = 17)
+lines(time(y)[600:700], y[600:700], col = "red")
+legend("bottomleft", legend = c("true values", "imputed values"), 
+  col = c("blue", "red"), pch = c(19, 17), lty = c(1, 1))
+```
+
+```{r}
+y0=exp(y)
+```
+
+```{r}
+a=weather[,c(-1,-2,-3,-14)]
+a=ts(a,frequency = 365,start = c(2016,1))
+a=log(a)
+b <- a
+```
+
+```{r}
+fit2=auto.arima(a[,2])
+summary(fit2)
+model2=fit2$model
+```
+
+```{r}
+# Kalman filter
+kr <- KalmanRun(a, model2)
+# impute missing values Z %*% alpha at each missing observation
+id.na <- which(is.na(a))
+for (i in id.na)
+  b[i] <- fit2$model$Z %*% kr$states[i,]
+b[id.na]
+```
+
+```{r}
+ts.plot(a,ylim=c(0,6),col="blue")
+```
+
+
+```{r}
+par(mfrow = c(2, 1), mar = c(2.2,2.2,2,2))
+a0=a
+plot(a0,col="gray")
+lines(a)
+points(time(a0)[id.na], a0[id.na], col = "blue", pch = 19)
+points(time(y)[id.na], b[id.na], col = "red", pch = 17)
+legend("bottomleft", legend = c("true values", "imputed values"), 
+  col = c("blue", "red"), pch = c(19, 17))
+plot(time(a0), a0, type = "b", col = "blue", 
+  pch = 19)
+points(time(b), b, col = "red", pch = 17)
+lines(time(b), b, col = "red")
+#legend("bottomleft", legend = c("true values", "imputed values"), 
+#  col = c("blue", "red"), pch = c(19, 17), lty = c(1, 1))
+```
+
+```{r}
+library(mice)
+```
+
+```{r}
+t=as.numeric(as.character(weathernew[,4]))
+pp=as.numeric(as.character(weathernew[,5]))
+weathernew_miss=data.frame(T=t,PP=pp)
+```
+
+```{r}
+library(mi)
+weathernew_miss=mi(weathernew_miss)
+```
+
+```{r}
+summary(weathernew_miss)
+```
+
+```{r}
+plot(weathernew_miss)
+```
+
+```{r}
+weathernew_miss=complete(weathernew_miss,m=2)
+```
+
+```{r}
+weathernew$T=weathernew_miss$`chain:1`$T
+weathernew$PP=weathernew_miss$`chain:1`$PP
+```
+
+
+```{r}
+pm2.5new$pm2.5=y0
+```
+
+
+```{r}
+pm_weather= data.frame(weathernew,pm2.5=pm2.5new$pm2.5,date=as.Date(pm2.5new$date))
+    
+```
+
+
+```{r}
+ggplot(pm_weather,ylab="Values")+
+  geom_line(aes(x=date,y=T),color = "#FC4E07", size = 0.5)+
+    geom_line(aes(x=date,y=pm2.5),color = "#E7B800", size = 0.5)+
+    stat_smooth(aes(x=date,y=T),
+  color = "#FC4E11", fill = "#FC4E11"
+  )+
+    stat_smooth(aes(x=date,y=pm2.5),
+  color = "#E7A900", fill = "#E7A900"
+  )+
+    theme_minimal()
+```
+
+
+
+```{r}
+ggplot(pm_weather,ylab="Values")+
+  geom_line(aes(x=date,y=PP),color = "#00AFBB", size = 0.5)+
+    geom_line(aes(x=date,y=pm2.5),color = "#E7B800", size = 0.5)+
+    stat_smooth(aes(x=date,y=PP),
+  color = "#02AFBB", fill = "#02AFBB"
+  )+
+    stat_smooth(aes(x=date,y=pm2.5),
+  color = "#E7A900", fill = "#E7A900"
+  )+
+    theme_minimal()
+```
+
+```{r}
+ggplot(pm_weather,ylab="Values")
+
+```
+
