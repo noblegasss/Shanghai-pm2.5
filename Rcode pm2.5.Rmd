@@ -1,0 +1,532 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+weather=read.csv("pp.csv")
+pm2.5=read.csv("pm2.csv")
+pm2.5$id=c(1:length(pm2.5$id))
+pm2.5new=pm2.5 %>%
+    filter(id==c(1:1077)) 
+i=1
+while (i<=15){
+    pm2.5new=add_row(pm2.5new,.before=635)
+    i=i+1
+}
+
+i=1
+while (i<=4){
+    pm2.5new=add_row(pm2.5new,.before=635)
+    i=i+1
+}
+pm2.5new$id=c(1:length(pm2.5new$id))
+weather[weather=="-"]=NA
+values = seq(from = as.Date("2016-01-01"), to = as.Date("2018-12-31"), by = 'day')
+weather$Date=values
+weather=weather[,c(-1,-2,-3)]
+weather$T=as.numeric(as.character(weather$T))
+weather$PP=as.numeric(as.character(weather$PP))
+weather$H=as.numeric(as.character(weather$H))
+weather$V=as.numeric(as.character(weather$V))
+weather$VV=as.numeric(as.character(weather$VV))
+weathernew=weather[,c(1,6,7,8,9)]
+pm_weather=cbind(pm2.5new[c(2:9)],weathernew)
+library(imputeTS)
+pm=ts(pm_weather[,c(-1)])
+imp=matrix(ncol=12,nrow=1096)
+imp2=imp
+for (i in c(1:12)){
+    imp[,i]=na.kalman(pm[,i])
+    imp2[,i]=as.numeric(imp[,i])
+    pm_weather[,i+1]=imp2[,i]
+    plotNA.imputations(pm[,i],imp[,i])
+}
+pm_weather$date=as.Date(pm_weather$date)
+pm_weather$month=months(pm_weather$date)
+pm_weather$year=format(pm_weather$date,format="%y")
+pm_weather_mon=aggregate(.~month+year,pm_weather,mean)
+pm_weather_mon=arrange(pm_weather_mon,year,match(month, month.name)) 
+ 
+values2 = seq(from = as.Date("2016-01-01"), to = as.Date("2018-12-31"), by = 'month')
+pm_weather_mon$date=values2
+pm2.5=ts(pm_weather_mon$pm2.5,frequency = 12,start = c(2016,1))
+d2012=read.csv("d2012.csv")
+d2013=read.csv("2013.csv")
+d2014=read.csv("2014.csv")
+d2015=read.csv("2015.csv")
+d2016=read.csv("2016.csv")
+d2017=read.csv("2017.csv")
+dat=rbind(d2012,d2013,d2014,d2015,d2016,d2017)
+dat$Value[dat$Value==-999]=NA
+dat=dat[-which(is.na(dat$Value)),]
+dat1=dat %>%
+    group_by(Year,Month) %>%
+    summarise(pm_2.5 = mean(Value))
+dat1 <- dat1 %>% data.frame 
+pm2.5_2=ts(dat1$pm_2.5,frequency = 12,start = c(2012,1))
+dat2=dat %>%
+    group_by(Year,Month,Day) %>%
+    summarise(pm_2.5 = mean(Value))
+dat2 <- dat2 %>% data.frame 
+dat3=dat %>%
+    group_by(Year,Month,Day) %>%
+    summarise(pm_2.5max = max(Value)) 
+dat3 <- dat3 %>% data.frame 
+values3 = seq(from = as.Date("2012-01-01"),length.out = 1995, by = 'day')
+dat2$date=values3
+dat3$date=values3
+dat2$pm25max=dat3$pm_2.5max
+dat2_mon=dat2 %>%
+    group_by(Year,Month) %>%
+    summarise(pm_2.5mon = mean(pm_2.5)) 
+dat2_mon <- dat2_mon %>% data.frame 
+## monthly average
+pm2.5mon
+pm2.5mon=ts(dat2_mon$pm_2.5mon,frequency = 12,start = c(2012,1))
+dat2_mon=dat2 %>%
+    group_by(Year,Month) %>%
+    summarise(pm_2.5mon = mean(pm_2.5)) 
+dat2_mon <- dat2_mon %>% data.frame 
+ts.plot(pm2.5mon)
+pm2.5mon=ts(dat2_mon$pm_2.5mon,frequency = 12,start = c(2012,1))
+plot(stl(pm2.5mon,s.window="periodic"))
+stl_pmmon=stl(pm2.5mon,"periodic")
+seasonal_mon=stl_pmmon$time.series[,1]
+trend_mon=stl_pmmon$time.series[,2]
+random_mon=stl_pmmon$time.series[,3]
+acf(random_mon)
+plot_ly(pm_weather_mon,x=~date) %>%
+    add_lines(y=~pm2.5)
+adf.test(pm2.5mon,alternative = "stationary")
+## Fit1: winter additve
+## Fit2: winter multiplicative
+win=window(pm2.5mon,start=2012)
+fit1 <- hw(win,seasonal="additive")
+fit2 <- hw(win,seasonal="multiplicative")
+## Fit3: SARIMA(1,1,0)[12]
+fit3=auto.arima(pm2.5mon)
+save_kable(kable(summary(fit3)),file = "null.png")
+checkresiduals(fit3)
+library(ggfortify)
+ggtsdiag(fit3)
+fit3 %>%
+  forecast(h=20) %>%
+  autoplot() +
+    ylab("pm2.5") +  xlab("Time")
+summary(fit1)
+ggtsdiag(fit2$model)
+## Exponential Model
+fit.ets=ets(pm2.5mon)
+summary(fit.ets)
+ggtsdiag(fit.ets)
+summary(fit3)
+summary(fit1$model)
+summary(fit2$model)
+ggplot2::autoplot(win) +
+  autolayer(fit1, series="HW additive forecasts", PI=FALSE) +
+  autolayer(fit2, series="HW multiplicative forecasts",
+    PI=FALSE) +
+  xlab("Date") +
+  ylab("PM2.5") +
+  ggtitle("PM_2.5 OVER 2012-2017") +
+  guides(colour=guide_legend(title="Forecast"))
+fit.ets %>% forecast(h=20) %>%
+  autoplot() +
+  ylab("PM2.5")
+combine=data.frame(pm2.5mon=dat2_mon$pm_2.5mon)
+combine2=data.frame(pm2.5mon=pm_weather_mon$pm2.5[c(19:36)])
+combin=rbind(combine,combine2)
+combin=ts(combin,frequency = 12,start=c(2012,1))
+autoplot(combin)
+pm2.5max=dat3 %>%
+    group_by(Year,Month) %>%
+    summarise(pm_2.5max = max(pm_2.5max)) 
+pm2.5max <- pm2.5max %>% data.frame 
+pm2.5max$date=seq(from = as.Date("2012-01-01"),length.out = 66 , by = 'month')
+plot_ly() %>%
+    add_lines(data=pm2.5max,x=~date,y=~pm_2.5max)
+tsmax=ts(pm2.5max$pm_2.5max,frequency = 12,start = c(2012,1))
+stlmax=stl(tsmax,"periodic")
+plot(stlmax)
+adf.test(tsmax,alternative = "stationary")
+fitmax=auto.arima(tsmax)
+summary(fitmax)
+ggtsdiag(fitmax)
+checkresiduals(fitmax)
+fitmax %>% forecast(h=20) %>%
+  autoplot() +
+  ylab("PM2.5")
+fitmaxets=ets(tsmax)
+summary(fitmaxets)
+checkresiduals(fitmaxets)
+fitmaxets %>% forecast(h=20) %>%
+  autoplot() +
+  ylab("PM2.5")
+## Trend detect
+### max
+pm2.5mon
+combin
+pm_weather_max=aggregate(.~month+year,pm_weather,max)
+max2=dat2 %>%
+    group_by(Year,Month) %>%
+    summarise(pm_2.5max = max(pm_2.5)) 
+max2$date=seq(from = as.Date("2012-01-01"),length.out = 66 , by = 'month')
+plot_ly() %>%
+    add_trace(data=max2,x=~date,y=~pm_2.5max,mode="line")
+com=data.frame(pm2.5max=max2$pm_2.5max)
+com2=data.frame(pm2.5max=pm_weather_max$pm2.5[c(19:36)])
+com=rbind(com,com2)
+com3=data.frame(Y2012=com$pm2.5max[1:12],Y2013=com$pm2.5max[13:24],Y2014=com$pm2.5max[25:36],Y2015=com$pm2.5max[37:48],Y2016=com$pm2.5max[49:60],Y2017=com$pm2.5max[61:72],Y2018=com$pm2.5max[73:84])
+comb=ts(com,frequency = 12,start=c(2012,1))
+autoplot(comb)
+stlmax2=stl(comb[,1],"periodic")
+plot(stlmax2)
+## trend test
+### Maximum
+t1=t.test(com3$Y2014,com3$Y2017)
+t2=t.test(com3$Y2012,com3$Y2013)
+t3=t.test(com3$Y2017,com3$Y2018)
+t.test(com3$Y2013,com3$Y2017)
+t.test(com3$Y2014,com3$Y2017)
+trend_mon=stl_pmmon$time.series[,2]
+trend_max2=stlmax2$time.series[,2]
+trenddata=data.frame(month=c(1:84),trendmax=trend_max2,date=seq(from = as.Date("2012-01-01"),length.out = 84 , by = 'month'))
+trendmodel=lm(trendmax~month,data=trenddata)
+plot_ly(trenddata,x=~month,y=~trendmax,mode='line')
+summary(trendmodel)
+plot(trendmodel)
+### Average
+combine=data.frame(pm2.5mon=dat2_mon$pm_2.5mon)
+combine2=data.frame(pm2.5mon=pm_weather_mon$pm2.5[c(19:36)])
+combin=rbind(combine,combine2)
+comb=ts(combin,frequency = 12,start=c(2012,1))
+combcomp=stl(comb[,1],"periodic")
+plot(combcomp)
+trend_mon=combcomp$time.series[,2]
+trendmon=data.frame(month=c(1:84),trendmon=trend_mon)
+plot_ly(trendmon,x=~month,y=~trendmon,mode='line')
+trendmodel2=lm(trendmon~month,data=trendmon)
+summary(trendmodel2)
+comb3=data.frame(Y2012=combin$pm2.5mon[1:12],Y2013=combin$pm2.5mon[13:24],Y2014=combin$pm2.5mon[25:36],Y2015=combin$pm2.5mon[37:48],Y2016=combin$pm2.5mon[49:60],Y2017=combin$pm2.5mon[61:72],Y2018=combin$pm2.5mon[73:84])
+t.test(comb3$Y2013,comb3$Y2018)
+t.test(comb3$Y2014,comb3$Y2018)
+t.test(comb3$Y2013,comb3$Y2017)
+t.test(comb3$Y2014,comb3$Y2017)
+pred=predict(trendmodel2,type="response")
+pred2=data.frame(month=c(1:84),trendmon=pred)
+plot_ly() %>%
+    add_trace(data=pred2,x=~month,y=~pred,add=TRUE,name="Trend") %>%
+    add_trace(data=trendmon,y=~trendmon,x=~month,name="True Comp") 
+## linear model
+stl_pmmon=stl(pm2.5mon,"periodic")
+seasonal_mon=stl_pmmon$time.series[,1]
+trend_mon=stl_pmmon$time.series[,2]
+random_mon=stl_pmmon$time.series[,3]
+modeldata=data.frame(pm2.5=pm2.5mon,seasonal=seasonal_mon,trend=trend_mon,residuals=random_mon)
+model1=gam(pm2.5~s(seasonal)+s(trend),data=modeldata)
+summary(model1)
+library(mgcv)
+mod=data.frame(date=pm2.5max$date,fit=model1$fitted.values)
+dat2_mon$date=pm2.5max$date
+plot_ly() %>%
+    add_trace(data=mod,x=~date,y=~fit,add=TRUE,name="Fit",mode='line') %>%
+    add_trace(data=dat2_mon,y=~pm_2.5mon,x=~date,name="True Comp",mode="line") 
+## gam1
+time=c(1:66)
+dat2_mon$time=time
+gam1=gam(pm_2.5mon~s(Month,bs="cc",k=12)+s(time),data=dat2_mon)
+summary(gam1)
+par(mfrow=c(1,2))
+plot(gam1, scale = 0,shade=TRUE)
+checkresiduals(gam1)
+mod=data.frame(date=pm2.5max$date,fit=gam1$fitted.values)
+dat2_mon$date=pm2.5max$date
+plot_ly() %>%
+    add_trace(data=mod,x=~date,y=~fit,add=TRUE,name="Fit",mode='line') %>%
+    add_trace(data=dat2_mon,y=~pm_2.5mon,x=~date,name="True Value",mode="line") 
+newdata=data.frame(Month=c(rep(c(1:12),7)),date=seq(from = as.Date("2012-01-01"),length.out = 84 , by = 'month'))
+newdata$time=c(1:84)
+pred=predict(gam1,newdata)
+pred2=data.frame(date=seq(from = as.Date("2012-01-01"),length.out = 84 , by = 'month'),fit=pred)
+combin$date=seq(from = as.Date("2012-01-01"),length.out = 84 , by = 'month')
+plot_ly() %>%
+    add_trace(data=combin,y=~pm2.5mon,x=~date,name="True Value",mode="line") %>%
+    add_trace(data=pred2,x=~date,y=~fit,add=TRUE,name="Fit",mode='line') 
+com$Month=c(rep(c(1:12),7))
+com$date=seq(from = as.Date("2012-01-01"),length.out = 84 , by = 'month')
+com$time=c(1:84)
+gam2=gam(pm2.5max~s(Month,bs="cc",k=12)+s(time),data=com)
+summary(gam2)
+par(mfrow=c(1,2))
+plot(gam2, scale = 0,shade=TRUE)
+checkresiduals(gam2)
+#mod2=data.frame(date=pm2.5max$date,fit=gam2$fitted.values)
+#dat2_mon$date=pm2.5max$date
+pred3=predict(gam2,newdata)
+pred4=data.frame(date=seq(from = as.Date("2012-01-01"),length.out = 84 , by = 'month'),fit=pred3)
+#combin$date=seq(from = as.Date("2012-01-01"),length.out = 84 , by = 'month')
+plot_ly() %>%
+    add_trace(data=pred4,x=~date,y=~fit,add=TRUE,name="Fit",mode='line') %>%
+    add_trace(data=com,y=~pm2.5max,x=~date,name="True Value",mode="line") 
+var1 <- VAR(pm_weather[,c(2,9,10,11,12,13)], p=1, type="const")
+serial.test(var1, lags.pt=10, type="PT.asymptotic")
+forecast1=predict(var1,n.ahead = 20)
+AIC(var1)
+plot(forecast1)
+gam3=gam(pm2.5~s(T)+s(PP)+s(H)+s(VV)+s(V),data=pm_weather)
+summary(gam3)
+AIC(gam3)
+par(mfrow=c(2,3))
+plot(gam3,shade=TRUE)
+par(mfrow=c(2,2))
+gam.check(gam3)
+pred6=predict(gam3)
+pred6=data.frame(date=pm_weather$date,fit=pred6)
+plot_ly() %>%
+    add_trace(data=pred6,x=~date,y=~fit,add=TRUE,name="Fit",mode='line',color="red") 
+plot_ly() %>%
+    add_trace(data=pm_weather,y=~pm2.5,x=~date,name="True Value",mode="line") 
+gam4=gam(pm2.5~s(pm10)+s(o3)+s(so2)+s(no2)+s(X.co),data=pm_weather)
+summary(gam4)
+par(mfrow=c(2,3))
+plot(gam4,shade=TRUE)
+pred7=predict(gam4)
+pred7=data.frame(date=pm_weather$date,fit=pred7)
+plot_ly() %>%
+    add_trace(data=pred7,x=~date,y=~fit,add=TRUE,name="Fit",mode='line',color="red") 
+plot_ly() %>%
+    add_trace(data=pm_weather,y=~pm2.5,x=~date,name="True Value",mode="line") 
+## New data
+pollution=read.csv("air pollution.csv")
+pollution_mon=read.csv("monthly.csv")
+### Compare
+pollution$date=as.Date(pollution$date)
+compare1=merge(pollution,dat2,by="date",all=TRUE)
+plot_ly(data=compare1,x=~date) %>%
+    add_lines(y=~pm_2.5,name="Old") %>%
+    add_lines(y=~pm2.5,name="New",opacity=0.8) %>%
+    layout(yaxis=list(title="Values"))
+d1=dat2[c(1:731),]
+k=c(d1$pm_2.5,pollution$pm2.5)
+compare2=data.frame(date=compare1$date,pm2.5=k)
+pollution_mon$month=seq(from=as.Date("2014-01-01"),length.out=63,by="month")
+names(combin)[2]="month"
+compare3=merge(pollution_mon,combin,by='month',all=TRUE)
+plot_ly(data=compare3,x=~month) %>%
+    add_lines(y=~pm2.5mon,name="Old") %>%
+    add_lines(y=~pm2.5,name="New") %>%
+    layout(yaxis=list(title="Values"))
+d2=combin[c(1:24),]
+d=c(d2$pm2.5mon,pollution_mon$pm2.5)
+compare4=data.frame(month=compare3$month,pm2.5=d)
+### Trend Analysis
+#### mann-kendall trend test
+library(Kendall)
+tss=ts(compare4$pm2.5,frequency=12,start=c(2012,1))
+decompose1=stl(tss,s.window="periodic")
+plot(decompose1)
+trend11=decompose1$time.series[,2]
+str(trend11)
+trend12=data.frame(month=c(1:87),trendmon=trend11)
+trendmodel3=lm(trendmon~month,data=trend12)
+summary(trendmodel3)
+predict=predict(trendmodel3,type="response")
+predict2=data.frame(month=c(1:87),trendmon=predict)
+plot_ly() %>%
+    add_lines(data=predict2,x=~month,y=~trendmon,add=TRUE,name="Trend") %>%
+    add_lines(data=trend12,y=~trendmon,x=~month,name="True Comp") 
+mk=MannKendall(trend11)
+summary(mk)
+#### Model fit
+compare4$Month=c(rep(c(1:12),7),1,2,3)
+compare4$time=c(1:87)
+library(mgcv)
+m1=auto.arima(tss)
+m0=hw(tss,seasonal="additive")
+m2= hw(tss,seasonal="multiplicative")
+m3=gam(pm2.5~s(Month,bs="cc",k=12)+s(time),data=compare4)
+m4=gam(pm2.5~s(Month,time),data=compare4)
+period=1
+m5=gam(pm2.5~te(time,Month,k=c(period,12),bs=c("cr","ps")),data=compare4)
+m6=gam(pm2.5~s(Month,bs="ps",k=12)+s(time,bs="cr",k=period)+ti(time,Month,k=c(period,12),bs=c("cr","ps")),
+       data=compare4,family=gaussian)
+m7=gam(pm2.5~t2(Month,time,k=c(period,12),bs=c("ps","cr"),full=TRUE),data=compare4)
+summary(m1)
+ggtsdiag(m1)
+checkresiduals(m1)
+summary(m0)
+checkresiduals(m0)
+summary(m2)
+checkresiduals(m2)
+summary(m3)
+par(mfrow=c(1,2))
+plot(m3,shade=TRUE)
+checkresiduals(m3)
+summary(m4)
+summary(m5)
+summary(m6)
+checkresiduals(m6)
+summary(m7)
+le=data.frame(time=c(87:107),Month=c(5:12,1:12,1))
+#predi1=predict(m1,type="response")
+#predi2=predict(m2,type="response")
+predi3=predict(m3,type="response")
+pr3=predict(m3,le,type="response")
+predi4=predict(m4,type="response")
+pr4=predict(m4,le,type="response")
+predi5=predict(m5,type="response")
+pr5=predict(m5,le,type="response")
+predi6=predict(m6,type="response")
+pr6=predict(m6,le,type="response")
+predi7=predict(m7,type="response")
+pr7=predict(m7,le,type="response")
+dataframe=data.frame(date=seq(from=as.Date("2012-01-01"),length.out=108,by="month"),true=c(compare4$pm2.5,rep(NA,21)),p3=c(predi3,pr3),p4=c(predi4,pr4),p5=c(predi5,pr5),p6=c(predi6,pr6),p7=c(predi7,pr7))
+p2=plot_ly(data=dataframe,x=~date) %>%
+    add_lines(y=~true) %>%
+    add_lines(y=~p3) %>%
+    layout(showlegend=FALSE)
+p3=plot_ly(data=dataframe,x=~date) %>%
+    add_lines(y=~true) %>%
+    add_lines(y=~p4)  %>%
+    layout(showlegend=FALSE)
+p4=plot_ly(data=dataframe,x=~date) %>%
+    add_lines(y=~true,color="bkack") %>%
+    add_lines(y=~p5)  %>%
+    layout(showlegend=FALSE)
+p5=plot_ly(data=dataframe,x=~date) %>%
+    add_lines(y=~true) %>%
+    add_lines(y=~p6)  %>%
+    layout(showlegend=FALSE)
+p6=plot_ly(data=dataframe,x=~date) %>%
+    add_lines(y=~true,color="bkack") %>%
+    add_lines(y=~p7)  %>%
+    layout(showlegend=FALSE)
+subplot(p2,p3,p4,p5,p6,nrows=5)
+ggplot2::autoplot(tss) +
+  autolayer(m0, series="Additive",PI=FALSE) +
+  autolayer(m2, series="Multiplicative",
+   PI=FALSE) +
+  xlab("Date") +
+  ylab("PM2.5") +
+  ggtitle("PM_2.5 OVER 2012-2018") +
+  guides(colour=guide_legend(title="Forecast"))
+m1 %>% forecast(h=20) %>%
+  autoplot() +
+  ylab("PM2.5")
+AIC(m3,m4,m5,m6,m7)
+### max
+max=compare2
+max$Year=format(compare2$date, "%Y")
+max$Month=format(compare2$date, "%m")
+max1=max %>%
+    group_by(Year,Month) %>%
+    summarise(pm_2.5max = max(pm2.5)) 
+library(Kendall)
+tssm=ts(max1$pm_2.5max,frequency=12,start=c(2012,1))
+decompose2=stl(tssm,s.window="periodic")
+plot(decompose2)
+trend21=decompose2$time.series[,2]
+str(trend21)
+trend22=data.frame(month=c(1:88),trendmon=trend21)
+trendmode23=lm(trendmon~month,data=trend22)
+summary(trendmode23)
+predict3=predict(trendmode23,type="response")
+predict4=data.frame(month=c(1:88),trendmon=predict3)
+plot_ly() %>%
+    add_lines(data=predict4,x=~month,y=~trendmon,add=TRUE,name="Trend") %>%
+    add_lines(data=trend22,y=~trendmon,x=~month,name="True Comp") 
+mk=MannKendall(trend21)
+summary(mk)
+#### Model fit
+max1$time=c(1:88)
+library(mgcv)
+max1$Month=as.numeric(max1$Month)
+a1=auto.arima(tssm)
+a0=hw(tssm,seasonal="additive")
+a2= hw(tssm,seasonal="multiplicative")
+a3=gam(pm_2.5max~s(Month,bs="cc",k=12)+s(time),data=max1)
+a4=gam(pm_2.5max~s(Month,time),data=max1)
+period=1
+a5=gam(pm_2.5max~te(time,Month,k=c(period,12),bs=c("cr","ps")),data=max1)
+a6=gam(pm_2.5max~s(Month,bs="ps",k=12)+s(time,bs="cr",k=period)+ti(time,Month,k=c(period,12),bs=c("cr","ps")),
+       data=max1,family=gaussian)
+a7=gam(pm_2.5max~t2(Month,time,k=c(period,12),bs=c("ps","cr"),full=TRUE),data=max1)
+summary(a0)
+checkresiduals(a0)
+summary(a1)
+ggtsdiag(a1)
+checkresiduals(a1)
+summary(a2)
+checkresiduals(a2)
+summary(a3)
+par(mfrow=c(1,2))
+plot(a3,shade = TRUE)
+checkresiduals(a3)
+summary(a4)
+summary(a5)
+summary(a6)
+summary(a7)
+le=data.frame(time=c(88:108),Month=c(5:12,1:12,1))
+#predi1=predict(m1,type="response")
+#predi2=predict(m2,type="response")
+pred3=predict(a3,type="response")
+pre3=predict(a3,le,type="response")
+pred4=predict(a4,type="response")
+pre4=predict(a4,le,type="response")
+pred5=predict(a5,type="response")
+pre5=predict(a5,le,type="response")
+pred6=predict(a6,type="response")
+pre6=predict(a6,le,type="response")
+pred7=predict(a7,type="response")
+pre7=predict(a7,le,type="response")
+dataframe2=data.frame(date=seq(from=as.Date("2012-01-01"),length.out=109,by="month"),true=c(max1$pm_2.5max,rep(NA,21)),p3=c(pred3,pre3),p4=c(pred4,pre4),p5=c(pred5,pre5),p6=c(pred6,pre6),p7=c(pred7,pre7))
+p22=plot_ly(data=dataframe2,x=~date) %>%
+    add_lines(y=~true) %>%
+    add_lines(y=~p3) %>%
+    layout(showlegend=FALSE)
+p33=plot_ly(data=dataframe2,x=~date) %>%
+    add_lines(y=~true,color="black") %>%
+    add_lines(y=~p4)  %>%
+    layout(showlegend=FALSE)
+p44=plot_ly(data=dataframe2,x=~date) %>%
+    add_lines(y=~true) %>%
+    add_lines(y=~p5)  %>%
+    layout(showlegend=FALSE)
+p55=plot_ly(data=dataframe2,x=~date) %>%
+    add_lines(y=~true) %>%
+    add_lines(y=~p6)  %>%
+    layout(showlegend=FALSE)
+p66=plot_ly(data=dataframe2,x=~date) %>%
+    add_lines(y=~true,color="bkack") %>%
+    add_lines(y=~p7)  %>%
+    layout(showlegend=FALSE)
+subplot(p22,p33,p44,p55,p66,nrows=5)
+ggplot2::autoplot(tssm) +
+    autolayer(a0, series="Additive",PI=FALSE) +
+    autolayer(a2, series="Multiplicative",
+              PI=FALSE) +
+    xlab("Date") +
+    ylab("PM2.5") +
+    ggtitle("PM2.5 MAX OVER 2012-2018") +
+    guides(colour=guide_legend(title="Forecast"))
+a1 %>% forecast(h=20) %>%
+    autoplot() +
+    ylab("PM2.5Max")
+AIC(a3,a4,a5,a6,a7)
+kk=data.frame(pm2.5avg=compare4$pm2.5,pm2.5max=max1$pm_2.5max[1:87],date=compare4$month)
+plot_ly(data=kk,x=~date) %>%
+    add_lines(y=~pm2.5avg,name="Monthly Average",fill='tonexty') %>%
+    add_lines(y=~pm2.5max,name="Montly Maximum",fill='tonexty')
+gamm=gam(pm2.5~s(pm10)+s(o3)+s(so2)+s(no2)+s(co),data=pollution)
+summary(gamm)
+pred8=predict(gamm)
+pred8=data.frame(date=pollution$date,fit=pred8,true=pollution$pm2.5)
+plot_ly(data=pred8,x=~date) %>%
+    add_lines(y=~fit,add=TRUE,name="Fit") %>%
+    add_lines(y=~true,name="True Value",opacity=0.5) 
+ppp=compare1[c(732:1995),]
+pppp=compare3[c(25:84),]
+t.test(ppp$pm_2.5,ppp$pm2.5,p.adjust.method = "BH")
+t.test(pppp$pm2.5,pppp$pm2.5mon,p.adjust.method = "BH")
+```
+
