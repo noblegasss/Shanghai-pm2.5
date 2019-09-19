@@ -1,7 +1,8 @@
 ---
 title: "PM2.5 FIRST PRESENTATION"
 subtitle: "⚔<br/>SHANGHAI"
-author: "ZHU WANG (王祝) \nWEI ZHANG (张薇)"
+author: "WEI ZHANG"
+presentor: "Wei Zhang \nZhu Wang"
 date: "2019/02/14"
 output:
   xaringan::moon_reader:
