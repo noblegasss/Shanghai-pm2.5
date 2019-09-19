@@ -1,0 +1,522 @@
+\documentclass[11pt,]{article}
+
+\usepackage{lmodern}
+\usepackage{setspace}
+\setstretch{1.2}
+\usepackage{siunitx} % Provides the \SI{}{} and \si{} command for typesetting SI units
+\usepackage{graphicx} % Required for the inclusion of images
+\usepackage{natbib} % Required to change bibliography style to APA
+\usepackage{amssymb,amsmath} % Required for some math elements 
+\usepackage{titling}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{floatrow}
+\floatsetup[figure]{capposition=top}
+\floatsetup[table]{capposition=top}
+\floatplacement{figure}{H}
+\floatplacement{table}{H}
+\usepackage{booktabs}
+\usepackage{caption}
+\usepackage[font=small,labelfont=bf]{caption}
+
+\setlength\parindent{24pt} % Removes all indentation from paragraphs
+
+\renewcommand{\labelenumi}{\alph{enumi}.} % Make numbering in the enumerate environment by letter rather than number (e.g. section 6)
+
+%\usepackage{times} % Uncomment to use the Times New Roman font
+
+%----------------------------------------------------------------------------------------
+%	DOCUMENT INFORMATION
+%----------------------------------------------------------------------------------------
+
+\newcommand{\subtitle}[1]{
+  \posttitle{
+    \begin{center}\large#1\end{center}
+    }
+}
+
+
+
+\title{Study on Shanghai PM 2.5 \\ Final Report } % Title
+
+
+\begin{document}
+
+\maketitle % Insert the title, author and date
+
+\begin{center}
+\begin{tabular}{l r}
+% Date the experiment was performed
+Consultants: & Wei Zhang \\ % Partner names
+& Zhu Wang \\
+Client: & Feifang Hu% Instructor/supervisor
+\end{tabular}
+\end{center}
+
+\vspace{5cm}
+
+
+
+\begin{abstract}
+\textbf{OBJECTIVE} To examine the PM2.5 problem is getting better or worse in the past years in Shanghai. And predict the PM2.5 level in the future years. Then give suggestions to reduce air pollution.
+
+\textbf{METHODS} We used univariate linear regression method and Mann-Kendall test to test the trend of monthly average and maximum PM 2.5 values. Moreover, we fitted SARIMA model, exponential smoothing models, and GAM models to predict the future Shanghai PM 2.5.
+
+\textbf{RESULTS} Based on the results of analysis, both monthly average and maximum PM 2.5 have a decreasing trends. For predicting the monthly average values, SARIMA model shows the best results. And GAM 1 model is the best model for predicting monthly maximum PM 2.5 values.
+
+\textbf{CONCLUSION} We can conclude that there is a decreasing trend for PM2.5 levels in recent years, with an obvious seasonal variation. The prediction of future indicates that the air quality is getting better. But people and government still need to take close attention and active actions to improve the air quality.
+
+\end{abstract}
+
+
+\pagebreak
+
+
+\section{Introduction}
+
+In this study, PM2.5 data of Shanghai was analyzed to determine whether PM2.5 level has increased or decreased. Shanghai is a global financial center and transport hub which is located on China?s east coast. The air pollution in Shanghai is not as severe as in many other Chinese cities, but still substantial by world standards. PM2.5 has a great influence on human?s health and is one of the major sources of air pollution. Therefore, the study of PM2.5 is of great significance. The study mainly focuses on three questions: i) What are the relevant factors for PM2.5? How are they affecting PM2.5? ii) Is PM2.5 getting better or worse in the past several years? iii) Is there any suggestions to improve air quality? 
+
+In this project, we are going to use statistical methods to answer the above questions.
+
+\section{Background and Dataset}
+
+\subsection{Background}
+
+PM stands for particulate matter, also called particle pollution, is a mixture of solid particles and liquid droplets found in the air. PM2.5 is a kind of fine inhalble particles with diameters that are generally 2.5 micrometers and smaller which means it can get deep into human?s lung and some may even get into human?s bloodstream. These particles come from either natural such as volcanoes, dust storms or human activities like burning of fossil fuels in vehicles and various industrial processes. PM2.5 has severe harmful effect on both human?s health, for example irregular heartbeat or decreased lung function, and the environment. In 2013, the ESCAPE study involving 312,944 people in nine European countries revealed that there was no safe level of particulates and that for every increase of 10 micrograms per cubic meters in PM2.5, the lung cancer rate rose $36\%$. For those issues, people need to pay highly attention to air pollution especially PM2.5.
+
+The local government of Shanghai launched two important policies to tackle the serious air pollution problem in Shanghai. One is Clean Air Action Plan in 2013, which aims to reduce the concentration of PM2.5 by 20 percent in five years. Shanghai?s clean air action plan is the first regulation in China to prevent and control volatile compounds that make up PM2.5. And the other is Shanghai?s Environmental Protection Plan in 2015, the goal is to reduce the average PM2.5 concentration to 48 micrograms per cubic meters by the end of 2017.
+
+{\includegraphics[width=\linewidth]{p1.png}}
+
+\subsection{Data Description}
+
+The data of this study were collected from several different sites (Appendix 2.1). The first dataset is from the US Embassy, which contains hourly data from 2012 through June 2017. The second dataset is from Shanghai Environmental Monitoring Center, the dataset consists of measurements from 2016 through 2019. This dataset provides not only PM2.5 values, but also values for other pollution sources such as PM10, CO, SO2. The third dataset is from Shanghai Municipal Bureau of Ecology and Environment, which provides 2018 hourly data of different blocks in Shanghai. The fourth dataset consists of 2016-2019 Shanghai weather data, which is from tutiempo.net. We also get supplementary data of PM2.5 values from aqistudy. To sum up, we get a total of 13 variables, and more than 50,000 observations. 
+
+At the outset, we check for missing values for all datasets. The problem of missing value exists in three of the datasets (Appendix 2.2). So we use EM algorithm to do the data imputation. We uses R to procedure the dataset. The packages we used include `stat`,`mgcv`,`forecast`,`tseries` etc. The explicit R code are attached in the Appendix. 
+
+
+\section{Data Analysis and Results}
+
+\subsection{Exploratory Data Analysis}
+
+First of all, we take a look at the trend of AQI in recent years. By world?s standard, we divided the air quality into 6 groups from good to hazardous. As shown in the pie chart below, we can clearly see a better air quality from 2014 (left) to 2018 (right). 
+
+\vspace{3mm}
+
+\begin{minipage}{.45\linewidth}
+\begin{flushleft}
+
+{\includegraphics[width=\linewidth]{trend1.png}}
+
+\end{flushleft} 
+\end{minipage}
+\hfill
+\begin{minipage}{.45\linewidth}
+\begin{flushright} 
+
+{\includegraphics[width=\linewidth]{trend2.png}}
+
+\end{flushright} 
+\end{minipage}
+
+\vspace{3mm}
+
+Then we use the monthly average data from AQI study to take an overall look at the changing trend for PM2.5 from January 2014 to March 2019. It shows a decreasing trend yearly, and we can see a seasonal pattern within years (left).
+
+\vspace{3mm}
+
+\begin{minipage}{.45\linewidth}
+\begin{flushleft}
+
+{\includegraphics[width=\linewidth]{trend3.png}}
+
+\end{flushleft} 
+\end{minipage}
+\hfill
+\begin{minipage}{.45\linewidth}
+\begin{flushright} 
+
+{\includegraphics[width=\linewidth]{trend4.png}}
+
+\end{flushright} 
+\end{minipage}
+
+
+\begin{minipage}{.45\linewidth}
+\begin{flushleft}
+
+{\includegraphics[width=\linewidth]{Image.png}}
+
+\end{flushleft} 
+\end{minipage}
+\hfill
+\begin{minipage}{.45\linewidth}
+\begin{flushright} 
+
+{\includegraphics[width=\linewidth]{m5.png}}
+
+\end{flushright} 
+\end{minipage}
+
+\vspace{3mm}
+
+Also, we use the hourly data from the US Embassy, we calculated the daily average PM2.5 and daily maximum PM2.5. The changing trend (right) coincides with the analysis above.
+Then we test the correlation of PM2.5 between other pollution source and the correlation of PM2.5 between weather (Appendix 3.1). We can conclude that PM2.5 has a strong positive relationship with PM10, SO2, NO2, and NO. For weather factors, temperature and visibility have strong negative relationship with PM2.5.
+For more exploration, we use spatial analysis method to check out whether the air quality in Shanghai vary for different districts. As shown above, the overall air quality in January is worse than August. And the regions near the sea have better air quality than inner-land.
+
+\vspace{3mm}
+
+\begin{minipage}{.45\linewidth}
+\begin{flushleft}
+
+{\includegraphics[width=\linewidth]{Image.png}}
+
+\end{flushleft} 
+\end{minipage}
+\hfill
+\begin{minipage}{.45\linewidth}
+\begin{flushright} 
+
+{\includegraphics[width=\linewidth]{m5.png}}
+
+\end{flushright} 
+\end{minipage}
+
+\vspace{3mm}
+
+\subsection{Statistical Analysis}
+
+In this section, we use several methods to analysis whether there is a trend in Shanghai pm 2.5 and fit several models to predict the future pm2.5 values.
+
+\vspace{3mm}
+
+\noindent\emph{Combine Datasets}
+
+\vspace{3mm}
+
+In order to detect a general trend of pm 2.5 in recent years, we used the 2012-2017 dataset from the US Embassy (original data) to derive average pm 2.5 values and maximum pm 2.5 values in every month. After a t-test analysis (Appendix) that showed no difference between Embassy dataset and aqistudy dataset (new data), we combined these two dataset and repeated the steps in analyzing the US Embassy data. We added the US Embassy data to aqistudy data from the range of 2012 to 2014. So the new data contains pm 2.5 concentration values up to date from 2012.
+
+\subsubsection{Trends Analysis}
+
+\vspace{3mm}
+
+\noindent\emph{Time Series Components}
+
+\vspace{3mm}
+
+Assume the time series data can be decomposed as an additive model:
+
+$$
+y_{t}=S_{t}+T_{t}+R_{t},
+$$
+
+where $y_t$ is the data, $S_t$ is the seasonal component, $T_t$ is the trend-cycle component, and $R_t$ is the remainder component.
+
+\vspace{3mm}
+
+\begin{minipage}{.45\linewidth}
+\begin{flushleft}
+
+{\includegraphics[width=\linewidth]{Rplot21.png}}
+
+\end{flushleft} 
+\end{minipage}
+\hfill
+\begin{minipage}{.45\linewidth}
+\begin{flushright} 
+
+{\includegraphics[width=\linewidth]{Rplot20.png}}
+
+\end{flushright} 
+\end{minipage}
+
+\vspace{3mm}
+
+We decomposed monthly average PM 2.5 and maximum PM 2.5 datasets by the Seasonal and Trend decomposition using Loess (STL) method, which is a robust method for decomposing time series. Above are the plots of decomposition of the two datasets, the left is the decomposition of PM 2.5 monthly average, and the right is the monthly maximum. The first line is the data plots; the second line is the seasonal components; the third line is the trend components and the bottom line is the residuals when the seasonal and trend components have been subtracted. To analyze the trend, we directly applied trend analysis methods to the trend-cycle components only.
+
+\vspace{3mm}
+
+\noindent\emph{Univariate Linear Regression Method}
+
+\vspace{3mm}
+
+After extracted the trend cycle components, we set the PM 2.5 monthly average value as the response variable, and month as the explanatory variable to fit a univariate linear regression model.  As the plot with true component and fitted trend shows on the left below, we can see that there may have a downward trend in the monthly average PM 2.5 concentration. The estimate of this model is -0.279 and the p-value $<$ 0.05 also proved that the this estimate is significant. Hence, we can conclude that the monthly average PM 2.5 values have a downward trend in 2012 to 2017. 
+
+We did the same steps to the monthly maximum pm 2.5 values. The estimate is -0.746, which is also significant based on the p-value. Compared with the estimates between monthly average, the monthly maximum has a steeper downward trends, which means that the degree of PM 2.5 is milder in 2017 compared with 2012 (summary results in Appendix). 
+
+\vspace{3mm}
+
+\begin{minipage}{.45\linewidth}
+\begin{flushleft}
+
+{\includegraphics[width=\linewidth]{Rplot22.png}}
+
+\end{flushleft} 
+\end{minipage}
+\hfill
+\begin{minipage}{.45\linewidth}
+\begin{flushright} 
+
+{\includegraphics[width=\linewidth]{Rplot19.png}}
+
+\end{flushright} 
+\end{minipage}
+
+\vspace{3mm}
+
+\vspace{3mm}
+
+\noindent\emph{Mann-Kendall Test }
+
+\vspace{3mm}
+
+We did a Mann Kendall Trend Test to confirm our results in the univariate linear regression method. The M-K test is a non-parametric test which used to analyze time series data for monotonic trends. The hypothesis test is designed as following:
+
+$H_0$: There does not exist a trend
+
+$H_a$: There exists a trend
+
+From the summary below, the p values tell that both monthly average and maximum are significant. And the tau values are negative, this means that there are increasing trend for both monthly average and maximum PM 2.5 values.  
+
+\vspace{3mm}
+
+\begin{minipage}{.45\linewidth}
+\begin{flushleft}
+
+{\includegraphics[width=\linewidth]{s1.png}}
+
+\end{flushleft} 
+\end{minipage}
+\hfill
+\begin{minipage}{.45\linewidth}
+\begin{flushright} 
+
+{\includegraphics[width=\linewidth]{s2.png}}
+
+
+\end{flushright} 
+\end{minipage}
+
+\vspace{3mm}
+
+From the results of univariate linear regression method and Mann-Kendall test, we can conclude that the Shanghai PM 2.5 concentration is decreasing in the recent years.
+
+\subsubsection{Model Fitting}
+
+After analyzing the trend of PM 2.5 in recent year, we wanted to predict whether pm 2.5 values based would decrease in the future. ARIMA models and exponential smoothing are the two most common way to approach time series forecasting. Moreover, based on the trend and seasonal components, we also fitted several generalized linear models. 
+
+\vspace{3mm}
+
+\noindent\emph{SARIMA Model}
+
+\vspace{3mm}
+
+ARIMA model is known as autoregressive integrated moving average model, and seasonal ARIMA is an extension of ARIMA with a seasonal component. The equation of general SARIMA $(p, d, q)(P, D, Q)_{m}$ is given by following:
+
+$$
+\Phi\left(B^{m}\right) \phi(B) \nabla_{m}^{D} \nabla^{d} X_{t}=\Theta\left(B^{m}\right) \theta(B) Z_{t}
+$$
+
+Using the R function `auto.arima` in the `forecast` package, we fit a SARIMA$(1,0,0)(1,1,0)_{12}$ and a SARIMA $(1,1,1)(0,0,2)_{12}$ respectfully for monthly average pm 2.5 and monthly maximum pm 2.5, and here are the residuals for these two models.
+
+\vspace{3mm}
+
+\begin{minipage}{.45\linewidth}
+\begin{flushleft}
+
+{\includegraphics[width=\linewidth]{s4avg.png}}
+
+\end{flushleft} 
+\end{minipage}
+\hfill
+\begin{minipage}{.45\linewidth}
+\begin{flushright} 
+
+{\includegraphics[width=\linewidth]{s3max.png}}
+
+
+\end{flushright} 
+\end{minipage}
+
+\vspace{3mm}
+
+As the plots above show that the ACF of residuals for both monthly average and monthly maximum are between the dot lines, the residuals appear to be white noise. The Ljung-Box test (See Appendix) also shows that the residuals have no remaining autocorrelations. Thus, the SARIMA models can be used to forecast both monthly average and maximum PM 2.5 values. 
+
+\vspace{3mm}
+
+\noindent\emph{Exponential Smoothing Method}
+
+\vspace{3mm}
+
+Exponential smoothing method weighed the observation exponentially with more weights on the recent observations and less weights on the past. This method is commonly used in seasonal time series data. In our project, we chose to use Holt-Winters$'$ seasonal method, which decomposed the predictor with three components: a level $l_t$, a trend $b_t$, and a seasonal $s_t$. There are two variations for Holt-Winters$'$ method, one is the Holt-Winters$'$ Additive method, and another is the Holt-Winters$'$ Multiplicative method, which decomposed the predictor into different formats with the same components. We tried both additive method and multiplicative method for monthly average and monthly maximum PM 2.5 values. Here are the residuals plots for these two methods. The top is the plots for monthly average and the bottom is maximum.
+
+\vspace{3mm}
+
+\begin{minipage}{.45\linewidth}
+\begin{flushleft}
+
+{\includegraphics[width=\linewidth]{hwamon.png}}
+
+\end{flushleft} 
+\end{minipage}
+\hfill
+\begin{minipage}{.45\linewidth}
+\begin{flushright} 
+
+{\includegraphics[width=\linewidth]{hwmmon.png}}
+
+
+\end{flushright} 
+\end{minipage}
+
+
+\vspace{3mm}
+
+For both residuals plots of average and maximum (see maximum residuals plots in Appendix), the residuals of Holt Winters$'$ Additive method show more likely to be white noise, since the distribution of the residuals are closed to normal. However, the p-values of the Ljung-Box test results for all models show insignificant. Hence, the exponential smoothing methods might not be the best models for prediction.
+
+\vspace{3mm}
+
+\noindent\emph{Generalized Additive Models}
+
+\vspace{3mm}
+
+Generalized additive model is a kind of generalized linear model, in which the linear predictor depends on smooth function of variables rather than variables themselves. GAM has been widely used in seasonal time series analysis. The model is shown as below:
+
+$$
+y=\beta_{0}+f_{\text { seasonal }}\left(x_{1}\right)+f_{\text { trend }}\left(x_{2}\right)+\varepsilon, \quad \varepsilon \sim N\left(0, \sigma^{2} \mathbf{\Lambda}\right)
+$$
+
+We tried two different smoothing methods to fit the monthly average and maximum PM 2.5 values: i) smoothing the time and month components separately and ii) smoothing the time and month components plus a product interaction term. Below is the splines plots for the monthly average values for model i), the model directly extract the trend and seasonal components for the average values. The table on the right is the estimate degree of freedom for two GAM models of average PM 2.5 values. As we can see that the GAM 2 decreases the degree of freedom for all smoothing variables, with increased r-sq. value. The estimates are all significant based on the F-test.
+
+When checking the residuals plots for these two GAM models of monthly average PM 2.5 values, we can see that the residuals are both satisfied the normal assumptions. Moreover, based on the Breusch-Godfrey test for serial correlation, the residuals show no correlation with each other. 
+
+
+\vspace{3mm}
+
+\begin{minipage}{.45\linewidth}
+\begin{flushleft}
+
+{\includegraphics[width=\linewidth]{Rplot1.png}}
+
+\end{flushleft} 
+\end{minipage}
+\hfill
+\begin{minipage}{.45\linewidth}
+\begin{flushright} 
+
+\begin{table}
+\scalebox{1}{
+\begin{tabular}{c|c|c}
+\hline
+  & GAM 1 & GAM 2  \\
+\hline
+s(Month)& 6.444 *** & 4.867 *** \\
+\hline
+s(Time)& 2.840 *** & 1.829 *** \\
+\hline
+ti(Month,Time)& &2.232 ** \\
+\hline
+R-Square &0.703&0.736\\
+\end{tabular}}
+\end{table}
+
+\end{flushright} 
+\end{minipage}
+
+\begin{minipage}{.45\linewidth}
+\begin{flushleft}
+
+{\includegraphics[width=\linewidth]{avggam1.png}}
+
+\end{flushleft} 
+\end{minipage}
+\hfill
+\begin{minipage}{.45\linewidth}
+\begin{flushright} 
+
+{\includegraphics[width=\linewidth]{gamavg2.png}}
+
+
+\end{flushright} 
+\end{minipage}
+
+
+However, for average maximum PM 2.5 values, the residuals plots of GAM 2 show that the residuals might not satisfied the normal assumptions (see Appendix). Therefore, for monthly average values, the GAM models can be used to predict future average PM 2.5. But the GAM 2 might not be precisely models for monthly maximum PM 2.5.
+
+\subsubsection{Forecast Results}
+
+We have already fitted 5 different models to predict monthly average and maximum PM 2.5, here is the table for the AIC values of different models.
+
+
+\begin{table}
+\scalebox{1}{
+\begin{tabular}{c|c|c|c|c|c}
+\hline
+   &SARIMA & HW Additive &  HW Multiplicative & GAM 1 &GAM 2\\
+\hline
+Avg.& 583.81 & 818.2102 & 798.7903 & 656.3680 & 645.8053 \\
+\hline
+ Max.& 903.85  & 1059.748 & 1040.291 &\ 888.0311 & 893.6073\\
+
+\end{tabular}}
+\end{table}
+
+For monthly average PM 2.5 data, SARIMA model has the lowest AIC value; For monthly maximum PM 2.5 data, GAM 1 model has the lowest AIC value. Hence, we can conclude that the best models for monthly average value prediction is SARIMA$(1,0,0)(1,1,0)_{12}$. As for the monthly maximum prediction, the best model is GAM 1. The prediction results for each models are showed below. Left plots are the forecast of monthly average, and right plots are the forecast of monthly maximum. All plots show downwards trend in predicting future PM 2.5 values.
+
+\begin{minipage}{.45\linewidth}
+\begin{flushleft}
+
+{\includegraphics[width=\linewidth]{r1.png}}
+
+\end{flushleft} 
+\end{minipage}
+\hfill
+\begin{minipage}{.45\linewidth}
+\begin{flushright} 
+
+{\includegraphics[width=\linewidth]{r2.png}}
+
+
+\end{flushright} 
+\end{minipage}
+
+
+\vspace{3mm}
+
+\section{Conclusion and Suggestions}
+
+The results of the statistical analysis above indicate that the Shanghai PM 2.5 values have a downwards trend in both monthly average and maximum. The predictions of the models also show a slightly decrease in the future Shanghai PM 2.5 degree. Based on the results, we provided some suggestions that could help improving Shanghai air quality.
+\vspace{3mm}
+
+\noindent\emph{Suggestions}
+
+\vspace{3mm}
+
+According to the director of Shanghai Environmental Protection Bureau, there are external and internal causes for the long-term and severe pollution situation in Shanghai. A cold front brought polluted air from northern China cities, which may use coal-burning boilers for central heating system, while a high pressure cyclone in south of Shanghai prevents dirty air from being blown further to the sea. Besides, tree density decreased in late Autumn may also be a reason that air pollution is more serious during winter for the trees can no longer trap dust. And straw burning in provinces nearby during October to December polluted the air as well. To tackle the air pollution problem, the local government launched the clean air action plan and environmental protection plan, including emissions from vehicles, industry, surrounding provinces and agriculture sectors. 
+
+In terms of suggestion, the government should provide strict supervision and take penalization into action. For industrial, the carbon emission trading scheme is a good method to control the total emission. However, new technologies and upgraded facilities can help to reduce the emission from the source. For Agricultural, straw burning should be strictly banned. The government can fund the construction of factories for straw power generation. For transportation, the government has extended subsidies for renewable energy cars. Meanwhile, Shanghai tightened its ban on Yellow Label vehicles from outer ring roads and adopted the V emission standards for all new vehicles. Although a lot of work have be done, the PM2.5 problem cannot be solved overnight. We still need to take long-term action to improve the air quality.
+
+\pagebreak
+
+\section{Reference}
+
+\begin{itemize}
+
+\item $[1]$ Ole Raaschou-Nielsen; et al. (July 10, 2013). "Air pollution and lung cancer incidence in 17 European cohorts: prospective analyses from the European Study of Cohorts for Air Pollution Effects (ESCAPE)". The Lancet Oncology. 14 (9): 813?22. 
+
+\vspace{-2mm}
+\item $[2]$ Ghassan B. Hamra,1 NeelaGuha,1 Aaron Cohen; et al. (September 2014). "Outdoor Particulate Matter Exposure and Lung Cancer: A Systematic Review and Meta-Analysis". Environmental Health Perspectives. 122 (9): 906?11. doi:10.1289/ehp.1408092.
+
+\vspace{-2mm}
+\item $[3]$ Hyndman, Rob J. $\&$ Athanasopoulos, George. $\&$ OTexts.com, issuing body.  (2014). Forecasting : principles and practice. Heathmont, Victoria:  OTexts.com
+\vspace{-2mm}
+
+\item $[4]$ Forecasting: Principles and Practice. 8.9 Seasonal ARIMA Models, otexts.com/fpp2/seasonal-arima.html.
+
+\vspace{-2mm}
+
+\item $[5]$ Laurinec, Peter. ?Doing Magic and Analyzing Seasonal Time Series with GAM (Generalized Additive Model) in R ? Peter Laurinec ? Time Series Data Mining in R. Bratislava, Slovakia.? Doing Magic and Analyzing Seasonal Time Series with GAM (Generalized Additive Model) in R ? Peter Laurinec ? Time Series Data Mining in R. Bratislava, Slovakia., petolau.github.io/Analyzing-double-seasonal-time-series-with-GAM-in-R/
+
+\end{itemize}
+
+\end{document}
